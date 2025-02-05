@@ -1,0 +1,241 @@
+<!-- public/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waste Management System</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            margin: 0;
+            margin-bottom: 20px;
+        }
+
+        #map {
+            height: 300px; /* Increased height for more bins */
+            width: 80%;
+            padding: 50px;
+            margin-bottom: 20px;
+            border-radius: 30px;
+        }
+
+        .bin-card {
+            width: 250px;
+            height: 150px;
+            background-color: #4158D0;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.320, 1);
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        .card-content {
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: white;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+        }
+
+        .card-content .card-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: inherit;
+            text-transform: uppercase;
+        }
+
+        .card-content .card-para {
+            color: inherit;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        a{
+            display: inline-block;
+            width: 30%;
+            margin: 50px;
+        }
+
+        .bin-card:hover {
+            transform: rotateY(10deg) rotateX(10deg) scale(1.05);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .bin-card:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.1));
+            transition: transform 0.5s cubic-bezier(0.23, 1, 0.320, 1);
+            z-index: 1;
+        }
+
+        .bin-card:hover:before {
+            transform: translateX(-100%);
+        }
+
+        .bin-card:after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.1));
+            transition: transform 0.5s cubic-bezier(0.23, 1, 0.320, 1);
+            z-index: 1;
+        }
+
+        .bin-card:hover:after {
+            transform: translateX(100%);
+        }
+
+        .bin-button {
+            margin: 5px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .bin-button:hover {
+            background-color: #45a049;
+        }
+
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+
+        a:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Waste Management System</h1>
+<br>
+
+<!-- Waste Collection Map -->
+<center><div id="map"></div></center>
+
+<!-- Bin Information -->
+<div id="binInfo" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
+
+<!-- Interactive Bin Buttons -->
+<div id="binButtons" style="text-align: center;"></div>
+
+<!-- Routing and Efficiency -->
+<center><a href="/simulationAlerts">View Simulation Alerts</a></center>
+
+<script>
+    function initMap() {
+        const map = new google.maps.Map(document.getElementById('map'), {
+            center: { lat: 17.385044, lng: 78.486671 },
+            zoom: 14,
+        });
+
+        // Simulated bin data with random positions
+        fetch('/getBins')
+            .then(response => response.json())
+            .then(bins => {
+                console.log('Received bin data:', bins); // Log for debugging
+
+                const binInfoContainer = document.getElementById('binInfo');
+
+                bins.forEach(bin => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: bin.latitude, lng: bin.longitude },
+                        map: map,
+                        title: bin.name,
+                        icon: bin.isFull ? 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' : undefined,
+                    });
+
+                    marker.addListener('click', () => {
+                        displayBinInfo(bin);
+                    });
+
+                    // Display bin information as cards
+                    const binCard = document.createElement('div');
+                    binCard.className = 'bin-card';
+                    binCard.innerHTML = `
+                        <div class="card-content">
+                            <h3 class="card-title"> ${bin.name}</h3>
+                            <p class="card-para">Status: ${bin.isFull ? 'Full' : 'Not Full'}</p>
+                            <!-- Add more information as needed -->
+                        </div>
+                    `;
+                    binInfoContainer.appendChild(binCard);
+                });
+
+                const binButtonsContainer = document.getElementById('binButtons');
+                bins.forEach(bin => {
+                    const binButton = document.createElement('button');
+                    binButton.textContent = bin.name;
+                    binButton.className = 'bin-button';
+                    binButton.onclick = () => {
+                        simulateAlert(bin.name);
+                    };
+                    binButtonsContainer.appendChild(binButton);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching bins:', error);
+            });
+    }
+
+    function displayBinInfo(bin) {
+        // You can customize this function if needed
+        // For now, we are displaying the information in cards above the map
+    }
+
+    function simulateAlert(binName) {
+        fetch(`/simulateAlert/${binName}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => {
+                console.error('Error simulating alert:', error);
+            });
+    }
+</script>
+
+<!-- Load the Google Maps JavaScript API with your API key -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOCz19h0MWs7SqKii-gdYv1052ccJlXyc&callback=initMap" async defer></script>
+
+</body>
+</html>
